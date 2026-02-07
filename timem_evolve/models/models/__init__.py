@@ -1,6 +1,6 @@
 """数据模型"""
 from .session import Session, SessionCreate, Message
-from .skill import Skill, Workflow
+from .skill import Skill, SkillRouting, Workflow
 from .rule import Rule
 from .feedback import Feedback, FeedbackCreate
 from .coach import CoachTask, CoachTaskCreate, CoachState
@@ -10,6 +10,7 @@ __all__ = [
     "SessionCreate",
     "Message",
     "Skill",
+    "SkillRouting",
     "Workflow",
     "Rule",
     "Feedback",

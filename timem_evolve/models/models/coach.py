@@ -1,6 +1,6 @@
 """Coach 模块数据模型"""
 from datetime import datetime
-from typing import List, Dict, Any, Literal
+from typing import List, Dict, Any, Literal, Optional
 from pydantic import BaseModel, Field
 import uuid
 

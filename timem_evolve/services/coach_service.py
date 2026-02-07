@@ -1,8 +1,8 @@
 """Coach 模块核心逻辑 - Gym 模式"""
 import json
 import asyncio
+from pathlib import Path
 from typing import List, Dict, Any, Optional
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from ..models import CoachTask, CoachTaskCreate, CoachState, Session, Message
 from ..dao.memory_dao import MemoryDAO
 from .learner_service import LearnerService
+from .utils import create_chat_model
 
 
 class CoachStorage:
@@ -47,6 +48,12 @@ class CoachStorage:
         return [CoachTask(**t) for t in tasks]
 
 
+class CoachGraphState(BaseModel):
+    """LangGraph state shared across Coach workflow"""
+    task: CoachTask
+    session: Optional[Session] = None
+
+
 class CoachService:
     """Coach Agent - 负责生成任务、观察和评估"""
     
@@ -54,19 +61,14 @@ class CoachService:
         self.dao = dao
         self.coach_storage = CoachStorage(data_dir=dao.data_dir)
         self.learner_service = learner_service
-        self.llm = ChatOpenAI(model=model_name, temperature=0.5)
-        self.learner_llm = ChatOpenAI(model=model_name, temperature=0.7) # 模拟 Learner Agent
+        self.llm = create_chat_model(model_name=model_name, temperature=0.5)
+        self.learner_llm = create_chat_model(model_name=model_name, temperature=0.7) # 模拟 Learner Agent
         
         # Coach Agent 的 LangGraph
         self.graph = self._build_graph()
         
     def _build_graph(self) -> StateGraph:
         """构建 Coach Agent 的工作流"""
-        
-        class CoachGraphState(BaseModel):
-            task: CoachTask
-            session: Optional[Session] = None
-            
         workflow = StateGraph(CoachGraphState)
         
         workflow.add_node("execute_task", self._execute_task)
@@ -257,4 +259,4 @@ Learner Agent 的对话:
         """列出 Coach 任务"""
         return self.coach_storage.list_tasks(status=status)
 
-from pathlib import Path
+CoachAgent = CoachService

@@ -19,7 +19,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
+mem0_evaluation/
+dataset/
 # Virtual environments
 venv/
 env/

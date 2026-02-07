@@ -12,6 +12,10 @@ pydantic>=2.0.0
 # Data and Storage
 aiosqlite>=0.20.0
 
+# v0.2.0 - M.S.F.S / E.S.P Support
+python-frontmatter>=1.0.0
+aiofiles>=24.1.0
+
 # Utilities
 python-dotenv>=1.0.0
 

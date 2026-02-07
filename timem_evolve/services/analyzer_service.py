@@ -1,11 +1,10 @@
 """LangGraph 分析器 - 使用 LLM 反思和分析会话"""
 from typing import TypedDict, Annotated, Literal
 from langgraph.graph import StateGraph, END
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
-import os
 
 from ..models import Session
+from .utils import create_chat_model
 
 
 class AnalysisState(TypedDict):
@@ -23,10 +22,7 @@ class AnalyzerService:
     
     def __init__(self, model_name: str = "gpt-4.1-mini"):
         # 初始化 LLM
-        self.llm = ChatOpenAI(
-            model=model_name,
-            temperature=0.7,
-        )
+        self.llm = create_chat_model(model_name=model_name, temperature=0.7)
         
         # 构建图
         self.graph = self._build_graph()
