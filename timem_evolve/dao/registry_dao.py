@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional
 
 import aiofiles
 import frontmatter
+import yaml
 
 from ..models import Skill, Workflow
 
@@ -215,11 +216,11 @@ class RegistryDAO:
         # 2. 生成 Markdown 正文
         content = self._generate_skill_markdown_content(skill)
 
-        # 3. 使用 frontmatter 库写入
-        post = frontmatter.Post(content, **frontmatter_data)
+        # 3. 使用手动方式写入 frontmatter（兼容新版 frontmatter）
+        full_content = self._format_frontmatter(frontmatter_data, content)
 
         async with aiofiles.open(skill_md_path, "w", encoding="utf-8") as f:
-            await f.write(frontmatter.dumps(post))
+            await f.write(full_content)
 
     async def _parse_skill_md(self, skill_md_path: Path) -> Optional[Skill]:
         """解析 SKILL.md (E.S.P 格式)
@@ -234,22 +235,24 @@ class RegistryDAO:
             async with aiofiles.open(skill_md_path, "r", encoding="utf-8") as f:
                 content = await f.read()
 
-            post = frontmatter.loads(content)
+            # 使用新版 frontmatter API
+            result = frontmatter.Frontmatter.read(content)
 
             # 从 Frontmatter 提取元数据
-            metadata = dict(post.metadata)
+            metadata = dict(result.get("attributes", {}))
 
             # 确保 category 在 metadata 中
-            metadata["category"] = metadata.pop("category", "uncategorized")
-            metadata["version"] = metadata.pop("version", "1.0.0")
-            metadata["author"] = metadata.pop("author", "TiMEM-Learner")
-            metadata["tags"] = metadata.pop("tags", [])
-            metadata["dependencies"] = metadata.pop("dependencies", [])
-            metadata["routing"] = metadata.pop("routing", {})
+            metadata["category"] = metadata.get("category", "uncategorized")
+            metadata["version"] = metadata.get("version", "1.0.0")
+            metadata["author"] = metadata.get("author", "TiMEM-Learner")
+            metadata["tags"] = metadata.get("tags", [])
+            metadata["dependencies"] = metadata.get("dependencies", [])
+            metadata["routing"] = metadata.get("routing", {})
 
             # 从 Markdown 正文提取工作流程
-            steps = self._extract_steps_from_markdown(post.content)
-            sop = self._extract_sop_from_markdown(post.content)
+            body = result.get("body", "")
+            steps = self._extract_steps_from_markdown(body)
+            sop = self._extract_sop_from_markdown(body)
 
             # 构造 Skill 对象
             return Skill(
@@ -268,6 +271,19 @@ class RegistryDAO:
             # 解析失败，记录错误并返回 None
             print(f"解析 SKILL.md 失败 ({skill_md_path}): {e}")
             return None
+
+    def _format_frontmatter(self, attributes: Dict[str, Any], body: str) -> str:
+        """格式化 frontmatter 为字符串（兼容新版 frontmatter）
+
+        Args:
+            attributes: YAML 属性字典
+            body: Markdown 正文
+
+        Returns:
+            格式化的 frontmatter 字符串
+        """
+        yaml_content = yaml.dump(attributes, allow_unicode=True, sort_keys=False)
+        return f"---\n{yaml_content}---\n{body}"
 
     # ==================== Markdown 内容生成与解析 ====================
 
@@ -665,22 +681,24 @@ class RegistryDAO:
             # 多维度匹配打分
             score = 0
 
-            # 名称匹配 (权重: 10)
-            if query_lower in skill_info.get("name", "").lower():
+            # 名称匹配 (权重: 10) - 查询包含名称
+            name = skill_info.get("name", "").lower()
+            if query_lower in name or name in query_lower:
                 score += 10
 
-            # 描述匹配 (权重: 5)
-            if query_lower in skill_info.get("description", "").lower():
+            # 描述匹配 (权重: 5) - 查询包含描述关键词
+            desc = skill_info.get("description", "").lower()
+            if query_lower in desc or desc in query_lower:
                 score += 5
 
-            # 标签匹配 (权重: 3)
+            # 标签匹配 (权重: 3) - 查询包含标签
             for tag in skill_info.get("tags", []):
-                if query_lower in tag.lower():
+                if query_lower in tag.lower() or tag.lower() in query_lower:
                     score += 3
 
-            # 路由关键词匹配 (权重: 8)
+            # 路由关键词匹配 (权重: 8) - 查询包含触发关键词
             for keyword in skill_info.get("trigger_keywords", []):
-                if query_lower in keyword.lower():
+                if query_lower in keyword.lower() or keyword.lower() in query_lower:
                     score += 8
 
             # 只有分数 > 0 才加入结果
@@ -981,17 +999,18 @@ class RegistryDAO:
             导入的 Skill 对象，如果解析失败则返回 None
         """
         try:
-            # 解析 Markdown
-            post = frontmatter.loads(markdown_content)
-            metadata = dict(post.metadata)
+            # 解析 Markdown - 使用新版 frontmatter API
+            result = frontmatter.Frontmatter.read(markdown_content)
+            metadata = dict(result.get("attributes", {}))
 
             # 覆盖 skill_id（如果提供）
             if skill_id:
                 metadata["skill_id"] = skill_id
 
             # 提取工作流程
-            steps = self._extract_steps_from_markdown(post.content)
-            sop = self._extract_sop_from_markdown(post.content)
+            body = result.get("body", "")
+            steps = self._extract_steps_from_markdown(body)
+            sop = self._extract_sop_from_markdown(body)
 
             # 构造 Skill 对象
             skill = Skill(

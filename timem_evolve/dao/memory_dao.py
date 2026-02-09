@@ -47,20 +47,26 @@ class MemoryDAO:
     
     async def save_session(self, session: Session) -> None:
         """保存会话"""
+        # 自定义 JSON 编码器处理 datetime
+        def default_serializer(obj):
+            if hasattr(obj, 'isoformat'):
+                return obj.isoformat()
+            raise TypeError(f'Object of type {obj.__class__.__name__} is not JSON serializable')
+
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """
-                INSERT OR REPLACE INTO sessions 
+                INSERT OR REPLACE INTO sessions
                 (session_id, task, messages, outcome, timestamp, metadata)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     session.session_id,
                     session.task,
-                    json.dumps([msg.model_dump() for msg in session.messages]),
+                    json.dumps([msg.model_dump() for msg in session.messages], default=default_serializer),
                     session.outcome,
                     session.timestamp.isoformat(),
-                    json.dumps(session.metadata)
+                    json.dumps(session.metadata, default=default_serializer)
                 )
             )
             await db.commit()

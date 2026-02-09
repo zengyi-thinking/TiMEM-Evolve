@@ -1,6 +1,7 @@
 """Coach 模块核心逻辑 - Gym 模式"""
 import json
 import asyncio
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -17,6 +18,9 @@ class CoachStorage:
     """Coach 任务存储（简化为 JSON 文件）"""
     
     def __init__(self, data_dir: str = "./data"):
+        self.data_dir = Path(data_dir)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+
         self.tasks_path = Path(data_dir) / "coach_tasks.json"
         if not self.tasks_path.exists():
             self.tasks_path.write_text("[]")
@@ -46,6 +50,26 @@ class CoachStorage:
         if status:
             tasks = [t for t in tasks if t.get("status") == status]
         return [CoachTask(**t) for t in tasks]
+
+    def get_state(self) -> "CoachState":
+        """获取 Coach 模块状态"""
+        tasks = self._load_tasks()
+
+        total = len(tasks)
+        completed = sum(1 for t in tasks if t.get("status") == "completed")
+        successful = sum(1 for t in tasks if t.get("outcome") == "success")
+        failed = sum(1 for t in tasks if t.get("outcome") == "failure")
+        skills = sum(1 for t in tasks if t.get("learned_skill_id"))
+        rules = sum(1 for t in tasks if t.get("learned_rule_id"))
+
+        return CoachState(
+            total_tasks=total,
+            completed_tasks=completed,
+            successful_tasks=successful,
+            failed_tasks=failed,
+            skills_gained=skills,
+            rules_gained=rules
+        )
 
 
 class CoachGraphState(BaseModel):

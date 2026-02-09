@@ -51,7 +51,21 @@ class CoachState(BaseModel):
     skills_gained: int = 0
     rules_gained: int = 0
     last_update: datetime = Field(default_factory=datetime.now)
-    
+
+    @property
+    def completion_rate(self) -> float:
+        """计算完成率"""
+        if self.total_tasks == 0:
+            return 0.0
+        return self.completed_tasks / self.total_tasks
+
+    @property
+    def success_rate(self) -> float:
+        """计算成功率"""
+        if self.completed_tasks == 0:
+            return 0.0
+        return self.successful_tasks / self.completed_tasks
+
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()
